@@ -1,12 +1,19 @@
 #include <string>
 
-// The templates are some histogram for each bin of neutrino energy
-TH2D * templates[10];
+// The templates are reconstructed lepton energy, in a slice of true neutrino energy
+TH1D * templates[10];
+TH1D * intrinsic;
+double energy_range[11] = {0., 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 4.5, 5.};
 
 // this is the thing you are trying to fit to, i.e. the data distribution
-TH2D * target;
+TH1D * target;
 
-bool doFit( double bestfit_norms[10] )
+double getOscProb( double energy, double theta, double dm2 )
+{
+    return 0.;
+}
+
+bool doFit( double &theta, double &dm2 )
 {
   // Make a Minuit fitter object
   ROOT::Math::Minimizer* fitter = ROOT::Math::Factory::CreateMinimizer("Minuit2"); 
@@ -16,14 +23,11 @@ bool doFit( double bestfit_norms[10] )
 
   // The variables will be normalizations of the templates, we will start the with seed values of 1.0
   // fourth argument is step size, i.e. how much to change the normalization by at each step
-  for( int i = 0; i < 10; ++i ) {
-    std::string varname = "temp" + std::to_string(i);
-    fitter->SetVariable( i, varname, 1.0, 0.001 );
-  }
+  fitter->SetVariable( 0, "theta", 0.001, 0.00001 );
+  fitter->SetVariable( 1, "dm2", 5.0, 0.01 );
 
-  // 10 free paraemters = 10 normalizations
-  ROOT::Math::Functor lf( this, getChi2, 10 );
-  ROOT::Math::Functor functor( lf, 10 );
+  // 2 free parameters = theta, dm2
+  ROOT::Math::Functor functor( getChi2, 2 );
   fitter->SetFunction( functor );
 
   // Go!
@@ -35,9 +39,8 @@ bool doFit( double bestfit_norms[10] )
   }
 
   const double *bestfit = fitter->X();
-  for( int i = 0; i < 10; ++i ) {
-    bestfit_norms[i] = bestfit[0];
-  }
+  theta = bestfit[0];
+  dm2 = bestfit[1];
   return true;
 
 }
@@ -46,11 +49,19 @@ bool doFit( double bestfit_norms[10] )
 double getChi2( const double * par ) const
 {
 
-  // Create a histogram "temp" from the templates, scaled based on the normalizations in par
-  TH2D * temp = templates[0]->Clone("tmp");
-  temp->Scale( par[0] );
-  for( int i = 1; i < 10; +=i ) temp->Add( templates[i], par[i] );
+  // Create a histogram "temp" from the templates
+  // Start with the intrinsic nu_e CC template, which doesn't change with oscillations
+  TH1D * temp = intrinsic->Clone("tmp");
 
+  // Add in oscillated neutrinos by taking the nu_mu CC templates and weighting by the oscillation probability
+  for( int i = 0; i < 10; +=i ) {
+    double e = (energy_range[i+1] - energy_range[i])/2.;
+    double oscProb = getOscProb(e, par[0], par[1]); // par[0] = theta, par[1] = dm2
+    temp->Add( templates[i], oscProb );
+  }
+  // now we have temp = intrinsic + oscillated nu_e CC
+
+  // calculate the chi2 with the "data" target
   double chi2 = 0.0;
   for( int bx = 1; bx <= target->GetNbinsX(); ++bx ) {
     for( int by = 1; by <= target->GetNbinsY(); ++by ) {
