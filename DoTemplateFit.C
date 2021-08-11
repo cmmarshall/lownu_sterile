@@ -99,9 +99,9 @@ void DoTemplateFit()
 {
   TFile *f = new TFile("output.root","READ");
   TH2D* h = (TH2D*)f->Get("hElepVsEv");
-  //for(int i=0; i<10; i++){
-  templates[1] = (TH1D*)h->ProjectionY("bin1",1,1);
-  templates[2] = (TH1D*)h->ProjectionY("bin2",2,2);
+  for(int i=0; i<10; i++){
+  templates[i] = (TH1D*)h->ProjectionY(TString::Format("bin;%d",i),i,i);}
+  /*templates[2] = (TH1D*)h->ProjectionY("bin2",2,2);
   templates[3] = (TH1D*)h->ProjectionY("bin3",3,3);
   templates[4] = (TH1D*)h->ProjectionY("bin4",4,4);
   templates[5] = (TH1D*)h->ProjectionY("bin5",5,5);
@@ -110,12 +110,10 @@ void DoTemplateFit()
   templates[8] = (TH1D*)h->ProjectionY("bin8",8,8);
   templates[9] = (TH1D*)h->ProjectionY("bin9",9,9);
   templates[0] = (TH1D*)h->ProjectionY("bin0",0,0);
-
+*/
   intrinsic = (TH1D*)f->Get("hLepE_sm");
   target = (TH1D*)f->Get("hElep_w");
 
-  //double theta = 0.01;
-  //double dm2 = 5;
   double par[2];
   par[0] = 0.001;
   par[1] = 0.5;
